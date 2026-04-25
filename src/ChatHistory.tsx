@@ -18,21 +18,21 @@ const ChatHistory = () => {
       direction="column-reverse"
       spacing={1}
       sx={{
-        minWidth: 100,
-        minHeight: 300,
-        maxHeight: 300,
+        minWidth: 200,
+        minHeight: 500,
+        maxHeight: 500,
         color: 'black',
         overflow: 'hidden',
       }}
     >
       {data?.map((item) => (
-        <Typography key={item.id} sx={{ fontSize: 16 }}>
+        <Typography key={item.id} sx={{ fontSize: 30 }}>
           <span
             style={{
               display: 'inline-block',
-              width: 40,
+              width: 60,
               color: randomColor({ seed: item.streamerId, luminosity: 'dark' }),
-              fontSize: 10,
+              fontSize: 15,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',

@@ -9,7 +9,7 @@ const VoteCommand = () => {
   const [votingItems] = useStore('votingItems', {});
 
   return (
-    <Stack spacing={1} sx={{ color: 'black', minWidth: 100, minHeight: 100 }}>
+    <Stack spacing={1} sx={{ color: 'black', minWidth: 200, minHeight: 200 }}>
       {Object.entries(votingItems).map(([key, value]) => (
         <Stack
           direction="row"
@@ -17,14 +17,15 @@ const VoteCommand = () => {
           spacing={1}
           sx={{ alignItems: 'center' }}
         >
-          <Typography sx={{ fontSize: 20, fontWeight: 'bold' }}>
+          <Typography sx={{ fontSize: 40, fontWeight: 'bold' }}>
             {value.name}:
           </Typography>
           <Chip
             label={`${VOTE_COMMAND} ${key}`}
             sx={{
+              height: 56,
               backgroundColor: '#ebebeb',
-              fontSize: 20,
+              fontSize: 40,
               fontWeight: 'bold',
             }}
           />

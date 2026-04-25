@@ -29,11 +29,11 @@ const Vote = () => {
         유효합니다.
       </Typography>
 
-      <Box sx={{ position: 'absolute', right: 0 }}>
-        <ChatHistory />
-      </Box>
+      <Stack spacing={1} sx={{ zoom: 0.7 }}>
+        <Box sx={{ position: 'absolute', right: 0 }}>
+          <ChatHistory />
+        </Box>
 
-      <Stack spacing={1}>
         <VoteCommand />
 
         <Box sx={{ width: 'fit-content', alignSelf: 'center' }}>
@@ -45,16 +45,8 @@ const Vote = () => {
               row
               value={chartType}
             >
-              <FormControlLabel
-                control={<Radio size="small" />}
-                label="Pie"
-                value="pie"
-              />
-              <FormControlLabel
-                control={<Radio size="small" />}
-                label="Bar"
-                value="bar"
-              />
+              <FormControlLabel control={<Radio />} label="Pie" value="pie" />
+              <FormControlLabel control={<Radio />} label="Bar" value="bar" />
             </RadioGroup>
           </FormControl>
           {{ pie: <ResultPieChart />, bar: <ResultBarChart /> }[chartType]}

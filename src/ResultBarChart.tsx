@@ -40,11 +40,14 @@ const ResultBarChart = () => {
 
   return (
     <BarChart
-      height={300}
+      height={500}
       series={chartData}
-      slotProps={{ legend: { sx: { fontSize: 20, fontWeight: 'bold' } } }}
+      slotProps={{
+        legend: { sx: { color: 'black', fontSize: 40, fontWeight: 'bold' } },
+        tooltip: { trigger: 'none' },
+      }}
       sx={{
-        [`& .${barClasses.label}`]: { fontSize: 20, fontWeight: 'bold' },
+        [`& .${barClasses.label}`]: { fontSize: 35, fontWeight: 'bold' },
         [`& .${axisClasses.bottom} .${axisClasses.tickLabel}`]: {
           display: 'none',
         },

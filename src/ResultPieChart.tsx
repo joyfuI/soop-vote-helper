@@ -37,13 +37,16 @@ const ResultPieChart = () => {
 
   return (
     <PieChart
-      height={300}
+      height={500}
       series={[{ data: chartData, arcLabel: 'value' }]}
-      slotProps={{ legend: { sx: { fontSize: 20, fontWeight: 'bold' } } }}
-      sx={{
-        [`& .${pieClasses.arcLabel}`]: { fontSize: 30, fontWeight: 'bold' },
+      slotProps={{
+        legend: { sx: { color: 'black', fontSize: 40, fontWeight: 'bold' } },
+        tooltip: { trigger: 'none' },
       }}
-      width={300}
+      sx={{
+        [`& .${pieClasses.arcLabel}`]: { fontSize: 35, fontWeight: 'bold' },
+      }}
+      width={500}
     />
   );
 };
