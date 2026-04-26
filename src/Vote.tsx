@@ -9,6 +9,7 @@ import { useState } from 'react';
 
 import ChatHistory from './ChatHistory';
 import { VOTE_COMMAND } from './constant';
+import Ranking from './Ranking';
 import ResultBarChart from './ResultBarChart';
 import ResultPieChart from './ResultPieChart';
 import VoteCommand from './VoteCommand';
@@ -47,9 +48,16 @@ const Vote = () => {
             >
               <FormControlLabel control={<Radio />} label="Pie" value="pie" />
               <FormControlLabel control={<Radio />} label="Bar" value="bar" />
+              <FormControlLabel control={<Radio />} label="Rank" value="rank" />
             </RadioGroup>
           </FormControl>
-          {{ pie: <ResultPieChart />, bar: <ResultBarChart /> }[chartType]}
+          {
+            {
+              pie: <ResultPieChart />,
+              bar: <ResultBarChart />,
+              rank: <Ranking />,
+            }[chartType]
+          }
         </Box>
       </Stack>
     </Box>
