@@ -19,7 +19,7 @@
     "@formkit/auto-animate": "^0.9.0",
     "@mui/icons-material": "^9.0.0",
     "@mui/material": "^9.0.0",
-    "@mui/x-charts": "^9.0.2",
+    "@mui/x-charts": "^9.0.3",
     "@tanstack/react-query": "^5.100.5",
     "@tanstack/react-query-devtools": "^5.100.5",
     "electron-store": "^11.0.2",
