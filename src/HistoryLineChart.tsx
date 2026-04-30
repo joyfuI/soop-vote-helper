@@ -1,4 +1,4 @@
-import { axisClasses } from '@mui/x-charts/ChartsAxis';
+import { labelMarkClasses } from '@mui/x-charts/ChartsLabel';
 import type { LineSeries } from '@mui/x-charts/LineChart';
 import { LineChart, lineClasses } from '@mui/x-charts/LineChart';
 import { useMemo } from 'react';
@@ -42,6 +42,15 @@ const HistoryLineChart = () => {
     );
   }, [votingItems, data]);
 
+  const xLabels = useMemo(
+    () =>
+      Array.from(new Set(data?.map((item) => item.minute))).map((item) => {
+        const date = new Date(item);
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      }),
+    [data],
+  );
+
   return (
     <LineChart
       height={500}
@@ -51,11 +60,11 @@ const HistoryLineChart = () => {
         tooltip: { trigger: 'none' },
       }}
       sx={{
-        [`.${lineClasses.line}, .${lineClasses.mark}`]: { strokeWidth: 4 },
-        [`& .${axisClasses.bottom} .${axisClasses.tickLabel}`]: {
-          display: 'none',
-        },
+        [`& .${lineClasses.line}, & .${lineClasses.mark}`]: { strokeWidth: 4 },
+        [`& .${labelMarkClasses.fill}`]: { strokeWidth: 4 },
+        [`& .${labelMarkClasses.root}`]: { width: 20, height: 20 },
       }}
+      xAxis={[{ scaleType: 'point', data: xLabels }]}
     />
   );
 };
