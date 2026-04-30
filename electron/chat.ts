@@ -59,23 +59,32 @@ ORDER BY voteCount DESC, comment ASC;
     {
       schema: {
         querystring: z.object({
-          startedAt: z.iso.datetime().nullable().default(null),
+          windowMinutes: z.coerce.number().int().min(1).default(10),
         }),
       },
     },
     async (request) => {
-      const { startedAt } = request.query;
+      const { windowMinutes } = request.query;
       return fastify.sqlite.all<Record<string, string>>(
         `
 WITH RECURSIVE
+params(windowMinutes) AS (
+  SELECT CASE
+    WHEN CAST(:windowMinutes AS INTEGER) > 0 THEN CAST(:windowMinutes AS INTEGER)
+    ELSE 10
+  END
+),
+
 base AS (
   SELECT id, userId, comment, receivedTime, strftime('%Y-%m-%dT%H:%M:00Z', receivedTime) AS minute
   FROM chat
-  WHERE :startedAt IS NULL OR receivedTime >= :startedAt
 ),
 
--- 같은 유저가 같은 분 안에 여러 번 투표했다면,
--- 그 분의 마지막 투표만 인정
+bounds AS (
+  SELECT MAX(unixepoch(minute)) AS endTs, MAX(unixepoch(minute)) - ((SELECT windowMinutes FROM params) - 1) * 60 AS startTs
+  FROM base
+),
+
 ranked AS (
   SELECT *, ROW_NUMBER() OVER (
     PARTITION BY userId, minute
@@ -90,7 +99,6 @@ per_user_minute AS (
   WHERE rn = 1
 ),
 
--- 유저별 이전 투표값 확인
 changes AS (
   SELECT userId, minute, comment, LAG(comment) OVER (
     PARTITION BY userId
@@ -99,9 +107,6 @@ changes AS (
   FROM per_user_minute
 ),
 
--- 투표 변화량 계산
--- 첫 투표: 현재 comment +1
--- 투표 변경: 이전 comment -1, 현재 comment +1
 delta AS (
   SELECT minute, comment, 1 AS delta
   FROM changes
@@ -120,12 +125,15 @@ delta_by_minute AS (
   GROUP BY minute, comment
 ),
 
-bounds AS (
-  SELECT MIN(unixepoch(minute)) AS startTs, MAX(unixepoch(minute)) AS endTs
-  FROM base
+-- 최근 n분 시작 시점 이전까지의 누적 상태
+initial AS (
+  SELECT delta.comment, SUM(delta.delta) AS voteCountBefore
+  FROM delta
+  CROSS JOIN bounds
+  WHERE unixepoch(delta.minute) < bounds.startTs
+  GROUP BY delta.comment
 ),
 
--- 첫 투표 시각부터 마지막 투표 시각까지 1분 단위 생성
 minutes(ts, minute) AS (
   SELECT startTs, strftime('%Y-%m-%dT%H:%M:00Z', startTs, 'unixepoch')
   FROM bounds
@@ -138,9 +146,18 @@ minutes(ts, minute) AS (
   WHERE ts + 60 <= bounds.endTs
 ),
 
+-- 최근 n분 구간에서 필요 있는 선택지만 생성
 choices AS (
-  SELECT DISTINCT comment
-  FROM base
+  SELECT comment
+  FROM initial
+  WHERE voteCountBefore <> 0
+
+  UNION
+
+  SELECT delta.comment
+  FROM delta
+  CROSS JOIN bounds
+  WHERE unixepoch(delta.minute) BETWEEN bounds.startTs AND bounds.endTs
 ),
 
 grid AS (
@@ -150,14 +167,16 @@ grid AS (
 ),
 
 series AS (
-  SELECT grid.minute, grid.comment, COALESCE(delta_by_minute.delta, 0) AS delta
+  SELECT grid.minute, grid.comment, COALESCE(delta_by_minute.delta, 0) AS delta, COALESCE(initial.voteCountBefore, 0) AS initialVoteCount
   FROM grid
   LEFT JOIN delta_by_minute
   ON delta_by_minute.minute = grid.minute AND delta_by_minute.comment = grid.comment
+  LEFT JOIN initial
+  ON initial.comment = grid.comment
 ),
 
 result AS (
-  SELECT minute, comment, SUM(delta) OVER (
+  SELECT minute, comment, initialVoteCount + SUM(delta) OVER (
     PARTITION BY comment
     ORDER BY minute
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
@@ -169,7 +188,7 @@ SELECT minute, comment, voteCount
 FROM result
 ORDER BY minute ASC, voteCount DESC, comment ASC;
 `,
-        { startedAt },
+        { windowMinutes },
       );
     },
   );

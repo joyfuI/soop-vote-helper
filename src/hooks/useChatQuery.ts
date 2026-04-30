@@ -35,7 +35,9 @@ export const useGetChatVoteResultQuery = () => {
   });
 };
 
-export const useGetChatVoteHistoryQuery = (params?: { startedAt?: string }) => {
+export const useGetChatVoteHistoryQuery = (params?: {
+  windowMinutes?: number;
+}) => {
   return useQuery({
     queryKey: ['chat', 'vote', 'history', params],
     queryFn: () =>
