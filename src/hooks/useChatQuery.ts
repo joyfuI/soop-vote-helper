@@ -34,3 +34,15 @@ export const useGetChatVoteResultQuery = () => {
     refetchIntervalInBackground: true,
   });
 };
+
+export const useGetChatVoteHistoryQuery = (params?: { startedAt?: string }) => {
+  return useQuery({
+    queryKey: ['chat', 'vote', 'history', params],
+    queryFn: () =>
+      fetchJson<{ minute: string; comment: string; voteCount: number }[]>(
+        `/api/chat/vote/history?${new URLSearchParams(params as Record<string, string>).toString()}`,
+      ),
+    refetchInterval: 1000,
+    refetchIntervalInBackground: true,
+  });
+};

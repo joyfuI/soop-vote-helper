@@ -44,6 +44,14 @@ CREATE TABLE IF NOT EXISTS chat (
   comment TEXT NOT NULL
 );
 `);
+      db.exec(`
+CREATE INDEX IF NOT EXISTS idx_chat_latest
+ON chat(receivedTime DESC, id DESC);
+`);
+      db.exec(`
+CREATE INDEX IF NOT EXISTS idx_chat_user_latest
+ON chat(userId, receivedTime DESC, id DESC);
+`);
     },
   });
 

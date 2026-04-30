@@ -52,7 +52,12 @@ window.test = (
           userId = Math.random().toString(36).substring(2, 10);
         } while (userId.length !== 8);
         const comment = `${VOTE_COMMAND} ${Math.floor(Math.random() * 5) + 1}`;
-        window.electron.testChat(streamerId, userId, comment);
+        window.electron.testChat(
+          streamerId,
+          userId.slice(0, 2),
+          comment,
+          userId,
+        );
       }, 100);
     }
   }

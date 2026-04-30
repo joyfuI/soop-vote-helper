@@ -3,6 +3,7 @@ import Typography from '@mui/material/Typography';
 
 import ChatHistory from './ChatHistory';
 import OverlayBox from './components/OverlayBox';
+import HistoryLineChart from './HistoryLineChart';
 import Ranking from './Ranking';
 import ResultBarChart from './ResultBarChart';
 import ResultPieChart from './ResultPieChart';
@@ -29,6 +30,9 @@ const Overlay = () => {
         </OverlayBox>
         <OverlayBox path="/ranking">
           <Ranking />
+        </OverlayBox>
+        <OverlayBox path="/history-line-chart">
+          <HistoryLineChart />
         </OverlayBox>
       </Stack>
     </>
