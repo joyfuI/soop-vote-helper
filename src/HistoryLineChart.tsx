@@ -10,7 +10,10 @@ import useStore from './hooks/useStore';
 const HistoryLineChart = () => {
   const [votingItems] = useStore('votingItems', {});
 
-  const { data } = useGetChatVoteHistoryQuery({ windowMinutes: 10 });
+  const { data } = useGetChatVoteHistoryQuery({
+    windowMinutes: 60,
+    bucketMinutes: 5,
+  });
 
   const chartData = useMemo(() => {
     const votingKeys = Object.keys(votingItems);
@@ -44,7 +47,7 @@ const HistoryLineChart = () => {
 
   const xLabels = useMemo(
     () =>
-      Array.from(new Set(data?.map((item) => item.minute))).map((item) => {
+      Array.from(new Set(data?.map((item) => item.bucketTime))).map((item) => {
         const date = new Date(item);
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
       }),

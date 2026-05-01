@@ -37,11 +37,12 @@ export const useGetChatVoteResultQuery = () => {
 
 export const useGetChatVoteHistoryQuery = (params?: {
   windowMinutes?: number;
+  bucketMinutes?: number;
 }) => {
   return useQuery({
     queryKey: ['chat', 'vote', 'history', params],
     queryFn: () =>
-      fetchJson<{ minute: string; comment: string; voteCount: number }[]>(
+      fetchJson<{ bucketTime: string; comment: string; voteCount: number }[]>(
         `/api/chat/vote/history?${new URLSearchParams(params as Record<string, string>).toString()}`,
       ),
     refetchInterval: 1000,

@@ -60,93 +60,159 @@ ORDER BY voteCount DESC, comment ASC;
       schema: {
         querystring: z.object({
           windowMinutes: z.coerce.number().int().min(1).default(10),
+          bucketMinutes: z.coerce.number().int().min(1).default(1),
         }),
       },
     },
     async (request) => {
-      const { windowMinutes } = request.query;
+      const { windowMinutes, bucketMinutes } = request.query;
       return fastify.sqlite.all<Record<string, string>>(
         `
 WITH RECURSIVE
-params(windowMinutes) AS (
-  SELECT CASE
-    WHEN CAST(:windowMinutes AS INTEGER) > 0 THEN CAST(:windowMinutes AS INTEGER)
-    ELSE 10
-  END
+params AS (
+  SELECT
+    CASE
+      WHEN CAST(:windowMinutes AS INTEGER) > 0 THEN CAST(:windowMinutes AS INTEGER)
+      ELSE 10
+    END AS windowMinutes,
+
+    CASE
+      WHEN CAST(:bucketMinutes AS INTEGER) > 0 THEN CAST(:bucketMinutes AS INTEGER)
+      ELSE 5
+    END AS bucketMinutes
+),
+
+settings AS (
+  SELECT
+    windowMinutes,
+    bucketMinutes,
+    bucketMinutes * 60 AS bucketSeconds,
+
+    -- 최근 n분을 bucketMinutes 단위 개수로 환산
+    -- 예: windowMinutes = 60, bucketMinutes = 5  → 12개
+    -- 예: windowMinutes = 60, bucketMinutes = 10 → 6개
+    CAST((windowMinutes + bucketMinutes - 1) / bucketMinutes AS INTEGER) AS bucketCount
+  FROM params
 ),
 
 base AS (
-  SELECT id, userId, comment, receivedTime, strftime('%Y-%m-%dT%H:%M:00Z', receivedTime) AS minute
+  SELECT
+    id,
+    userId,
+    comment,
+    receivedTime,
+
+    CAST(unixepoch(receivedTime) / (SELECT bucketSeconds FROM settings) AS INTEGER)
+      * (SELECT bucketSeconds FROM settings) AS bucketTs,
+
+    strftime(
+      '%Y-%m-%dT%H:%M:00Z',
+      CAST(unixepoch(receivedTime) / (SELECT bucketSeconds FROM settings) AS INTEGER)
+        * (SELECT bucketSeconds FROM settings),
+      'unixepoch'
+    ) AS bucketTime
   FROM chat
 ),
 
 bounds AS (
-  SELECT MAX(unixepoch(minute)) AS endTs, MAX(unixepoch(minute)) - ((SELECT windowMinutes FROM params) - 1) * 60 AS startTs
+  SELECT
+    MAX(bucketTs) AS endTs,
+    MAX(bucketTs) - ((SELECT bucketCount FROM settings) - 1) * (SELECT bucketSeconds FROM settings) AS startTs
   FROM base
 ),
 
 ranked AS (
-  SELECT *, ROW_NUMBER() OVER (
-    PARTITION BY userId, minute
-    ORDER BY receivedTime DESC, id DESC
-  ) AS rn
+  SELECT
+    *,
+    ROW_NUMBER() OVER (
+      PARTITION BY userId, bucketTs
+      ORDER BY receivedTime DESC, id DESC
+    ) AS rn
   FROM base
 ),
 
-per_user_minute AS (
-  SELECT userId, minute, comment
+per_user_bucket AS (
+  SELECT
+    userId,
+    bucketTs,
+    bucketTime,
+    comment
   FROM ranked
   WHERE rn = 1
 ),
 
 changes AS (
-  SELECT userId, minute, comment, LAG(comment) OVER (
-    PARTITION BY userId
-    ORDER BY minute
-  ) AS prevComment
-  FROM per_user_minute
+  SELECT
+    userId,
+    bucketTs,
+    bucketTime,
+    comment,
+    LAG(comment) OVER (
+      PARTITION BY userId
+      ORDER BY bucketTs
+    ) AS prevComment
+  FROM per_user_bucket
 ),
 
 delta AS (
-  SELECT minute, comment, 1 AS delta
+  SELECT
+    bucketTs,
+    bucketTime,
+    comment,
+    1 AS delta
   FROM changes
   WHERE prevComment IS NULL OR prevComment <> comment
 
   UNION ALL
 
-  SELECT minute, prevComment AS comment, -1 AS delta
+  SELECT
+    bucketTs,
+    bucketTime,
+    prevComment AS comment,
+    -1 AS delta
   FROM changes
   WHERE prevComment IS NOT NULL AND prevComment <> comment
 ),
 
-delta_by_minute AS (
-  SELECT minute, comment, SUM(delta) AS delta
+delta_by_bucket AS (
+  SELECT
+    bucketTs,
+    comment,
+    SUM(delta) AS delta
   FROM delta
-  GROUP BY minute, comment
+  GROUP BY bucketTs, comment
 ),
 
--- 최근 n분 시작 시점 이전까지의 누적 상태
 initial AS (
-  SELECT delta.comment, SUM(delta.delta) AS voteCountBefore
+  SELECT
+    delta.comment,
+    SUM(delta.delta) AS voteCountBefore
   FROM delta
   CROSS JOIN bounds
-  WHERE unixepoch(delta.minute) < bounds.startTs
+  WHERE delta.bucketTs < bounds.startTs
   GROUP BY delta.comment
 ),
 
-minutes(ts, minute) AS (
-  SELECT startTs, strftime('%Y-%m-%dT%H:%M:00Z', startTs, 'unixepoch')
+buckets(ts, bucketTime) AS (
+  SELECT
+    startTs,
+    strftime('%Y-%m-%dT%H:%M:00Z', startTs, 'unixepoch')
   FROM bounds
   WHERE startTs IS NOT NULL
 
   UNION ALL
 
-  SELECT ts + 60, strftime('%Y-%m-%dT%H:%M:00Z', ts + 60, 'unixepoch')
-  FROM minutes, bounds
-  WHERE ts + 60 <= bounds.endTs
+  SELECT
+    ts + (SELECT bucketSeconds FROM settings),
+    strftime(
+      '%Y-%m-%dT%H:%M:00Z',
+      ts + (SELECT bucketSeconds FROM settings),
+      'unixepoch'
+    )
+  FROM buckets, bounds
+  WHERE ts + (SELECT bucketSeconds FROM settings) <= bounds.endTs
 ),
 
--- 최근 n분 구간에서 필요 있는 선택지만 생성
 choices AS (
   SELECT comment
   FROM initial
@@ -157,38 +223,52 @@ choices AS (
   SELECT delta.comment
   FROM delta
   CROSS JOIN bounds
-  WHERE unixepoch(delta.minute) BETWEEN bounds.startTs AND bounds.endTs
+  WHERE delta.bucketTs BETWEEN bounds.startTs AND bounds.endTs
 ),
 
 grid AS (
-  SELECT minutes.minute, choices.comment
-  FROM minutes
+  SELECT
+    buckets.ts AS bucketTs,
+    buckets.bucketTime,
+    choices.comment
+  FROM buckets
   CROSS JOIN choices
 ),
 
 series AS (
-  SELECT grid.minute, grid.comment, COALESCE(delta_by_minute.delta, 0) AS delta, COALESCE(initial.voteCountBefore, 0) AS initialVoteCount
+  SELECT
+    grid.bucketTs,
+    grid.bucketTime,
+    grid.comment,
+    COALESCE(delta_by_bucket.delta, 0) AS delta,
+    COALESCE(initial.voteCountBefore, 0) AS initialVoteCount
   FROM grid
-  LEFT JOIN delta_by_minute
-  ON delta_by_minute.minute = grid.minute AND delta_by_minute.comment = grid.comment
+  LEFT JOIN delta_by_bucket
+  ON delta_by_bucket.bucketTs = grid.bucketTs AND delta_by_bucket.comment = grid.comment
   LEFT JOIN initial
   ON initial.comment = grid.comment
 ),
 
 result AS (
-  SELECT minute, comment, initialVoteCount + SUM(delta) OVER (
-    PARTITION BY comment
-    ORDER BY minute
-    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-  ) AS voteCount
+  SELECT
+    bucketTime,
+    comment,
+    initialVoteCount + SUM(delta) OVER (
+      PARTITION BY comment
+      ORDER BY bucketTs
+      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+    ) AS voteCount
   FROM series
 )
 
-SELECT minute, comment, voteCount
+SELECT
+  bucketTime,
+  comment,
+  voteCount
 FROM result
-ORDER BY minute ASC, voteCount DESC, comment ASC;
+ORDER BY bucketTime ASC, voteCount DESC, comment ASC;
 `,
-        { windowMinutes },
+        { windowMinutes, bucketMinutes },
       );
     },
   );
