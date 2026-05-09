@@ -66,6 +66,14 @@ const routes: FastifyPluginAsync = async (fastify) => {
     },
   );
 
+  fastify.get<{ Params: { streamerId: string } }>(
+    '/api/soop/:streamerId',
+    async (request) => {
+      const { streamerId } = request.params;
+      return { id: streamerId, isPlay: soopChatMap.has(streamerId) };
+    },
+  );
+
   fastify.delete<{ Params: { streamerId: string } }>(
     '/api/soop/:streamerId',
     async (request) => {

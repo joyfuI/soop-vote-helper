@@ -13,10 +13,11 @@ import Paper from '@mui/material/Paper';
 import TextField from '@mui/material/TextField';
 import { useState } from 'react';
 
+import type { GetSoopResponse } from '../hooks/useSoopQuery';
 import type { StoreType } from '../types';
 
 export type StreamerListProps = {
-  data: StoreType['streamerIds'];
+  data: GetSoopResponse[];
   onAdd: (value: StoreType['streamerIds'][0]) => void;
   onDelete: (value: StoreType['streamerIds'][0]) => void;
   onConnect: (
@@ -34,66 +35,44 @@ const StreamerList = ({
   onConnect,
   onDisconnect,
 }: StreamerListProps) => {
-  const [connectMap, setConnectMap] = useState(new Map<string, boolean>());
   const [value, setValue] = useState('');
 
-  const handleConnect = async (streamerId: string) => {
-    if (connectMap.get(streamerId)) {
-      if ((await onDisconnect(streamerId)) !== false) {
-        setConnectMap((oldConnectMap) => {
-          const newConnectMap = new Map(oldConnectMap);
-          newConnectMap.set(streamerId, false);
-          return newConnectMap;
-        });
-      }
+  const handleConnect = (streamerId: string) => {
+    if (data.find((item) => item.id === streamerId)?.isPlay) {
+      onDisconnect(streamerId);
     } else {
-      if ((await onConnect(streamerId)) !== false) {
-        setConnectMap((oldConnectMap) => {
-          const newConnectMap = new Map(oldConnectMap);
-          newConnectMap.set(streamerId, true);
-          return newConnectMap;
-        });
-      }
+      onConnect(streamerId);
     }
   };
 
   const handleDelete = (streamerId: string) => {
     onDelete(streamerId);
-    setConnectMap((oldConnectMap) => {
-      const newConnectMap = new Map(oldConnectMap);
-      newConnectMap.delete(streamerId);
-      return newConnectMap;
-    });
   };
 
   return (
     <Paper sx={{ width: 300 }}>
       <List disablePadding>
-        {data.map((item) => {
-          const isConnected = connectMap.get(item) ?? false;
-
-          return (
-            <ListItem key={item}>
-              <ListItemText primary={item} />
-              <ButtonGroup
-                color={isConnected ? 'error' : 'primary'}
-                size="small"
-                variant="contained"
+        {data.map((item) => (
+          <ListItem key={item.id}>
+            <ListItemText primary={item.id} />
+            <ButtonGroup
+              color={item.isPlay ? 'error' : 'primary'}
+              size="small"
+              variant="contained"
+            >
+              <Button onClick={() => handleConnect(item.id)}>
+                {item.isPlay ? <StopIcon /> : <PlayArrowIcon />}
+              </Button>
+              <Button
+                disabled={item.isPlay}
+                onClick={() => handleDelete(item.id)}
+                variant="outlined"
               >
-                <Button onClick={() => handleConnect(item)}>
-                  {isConnected ? <StopIcon /> : <PlayArrowIcon />}
-                </Button>
-                <Button
-                  disabled={isConnected}
-                  onClick={() => handleDelete(item)}
-                  variant="outlined"
-                >
-                  <ClearIcon />
-                </Button>
-              </ButtonGroup>
-            </ListItem>
-          );
-        })}
+                <ClearIcon />
+              </Button>
+            </ButtonGroup>
+          </ListItem>
+        ))}
         <Divider />
         <ListItem
           secondaryAction={

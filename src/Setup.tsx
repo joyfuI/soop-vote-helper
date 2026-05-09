@@ -1,25 +1,30 @@
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
-import { useState } from 'react';
 
 import FormLabel from './components/FormLabel';
 import StreamerList from './components/StreamerList';
 import VotingItemList from './components/VotingItemList';
 import { VOTE_COMMAND } from './constant';
-import { useDeleteSoopQuery, usePostSoopQuery } from './hooks/useSoopQuery';
+import {
+  useDeleteSoopQuery,
+  useGetSoopQueries,
+  usePostSoopQuery,
+} from './hooks/useSoopQuery';
 import useStore from './hooks/useStore';
 import { useDeleteStoresQuery } from './hooks/useStoreQuery';
 import {
+  useGetVoteStartQuery,
   usePostVoteClearQuery,
   usePostVoteStartQuery,
   usePostVoteStopQuery,
 } from './hooks/useVoteQuery';
 
 const Setup = () => {
-  const [isStarted, setIsStarted] = useState(false);
   const [streamerIds, setStreamerIds] = useStore('streamerIds', []);
   const [votingItems, setVotingItems] = useStore('votingItems', {});
 
+  const { data: isStarted } = useGetVoteStartQuery();
+  const streamerListData = useGetSoopQueries(streamerIds);
   const { mutateAsync: connectMutateAsync } = usePostSoopQuery();
   const { mutate: disconnectMutate } = useDeleteSoopQuery();
   const { mutate: voteClearMutate } = usePostVoteClearQuery();
@@ -73,7 +78,7 @@ const Setup = () => {
         label="SOOP ID 연결"
       >
         <StreamerList
-          data={streamerIds}
+          data={streamerListData}
           onAdd={handleStreamerAdd}
           onConnect={handleConnect}
           onDelete={handleStreamerDelete}
@@ -99,10 +104,7 @@ const Setup = () => {
         {isStarted ? (
           <Button
             color="error"
-            onClick={() => {
-              voteStopMutate();
-              setIsStarted(false);
-            }}
+            onClick={() => voteStopMutate()}
             size="large"
             variant="contained"
           >
@@ -111,10 +113,7 @@ const Setup = () => {
         ) : (
           <Button
             color="primary"
-            onClick={() => {
-              voteStartMutate();
-              setIsStarted(true);
-            }}
+            onClick={() => voteStartMutate()}
             size="large"
             variant="contained"
           >
@@ -130,7 +129,10 @@ const Setup = () => {
         <Stack direction="row" spacing={1}>
           <Button
             color="warning"
-            onClick={() => voteClearMutate()}
+            onClick={() => {
+              voteStopMutate();
+              voteClearMutate();
+            }}
             variant="contained"
           >
             집계 데이터 초기화
@@ -138,6 +140,7 @@ const Setup = () => {
           <Button
             color="error"
             onClick={() => {
+              voteStopMutate();
               voteClearMutate();
               clearMutate();
             }}

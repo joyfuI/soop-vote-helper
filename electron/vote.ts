@@ -5,6 +5,10 @@ const routes: FastifyPluginAsync = async (fastify) => {
     fastify.workGate.start();
   });
 
+  fastify.get('/api/vote/start', async () => {
+    return fastify.workGate.isStarted();
+  });
+
   fastify.post('/api/vote/stop', async () => {
     fastify.workGate.stop();
   });
