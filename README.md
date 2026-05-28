@@ -6,6 +6,8 @@ SOOP 투표 도우미입니다.
 
 OBS, 프릭샷 등의 브라우저 소스 기능으로 오버레이를 띄울 수도 있습니다.
 
+관련 잡담은 [https://blog.joyfui.com/1321](https://blog.joyfui.com/1321)
+
 ## 주요 기능
 
 - 여러 SOOP 방송 채팅방 연결
