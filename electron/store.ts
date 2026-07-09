@@ -43,7 +43,7 @@ const routes: FastifyPluginAsync = async (fastify) => {
     '/api/store/:key',
     async (request) => {
       const { key } = request.params;
-      return getStore().get(key);
+      return JSON.stringify(getStore().get(key));
     },
   );
 
